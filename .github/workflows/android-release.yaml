@@ -1,0 +1,70 @@
+name: Flutter build Android
+
+on:
+  push:
+    branches: [main, develop, release/*]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # https://github.com/kuhnroyal/flutter-fvm-config-action
+      - name: Fetch flutter config
+        uses: kuhnroyal/flutter-fvm-config-action@v1
+
+      # https://github.com/subosito/flutter-action
+      - name: Set up flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+          cache-key: ${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_CHANNEL }}
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Cache pubspec dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ env.FLUTTER_HOME }}/.pub-cache
+            **/.packages
+            **/.flutter-plugins
+            **/.flutter-plugin-dependencies
+            **/.dart_tool/package_config.json
+          key: build-pubspec-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: build-pubspec-
+
+      - name: Cache build runner
+        uses: actions/cache@v2
+        with:
+          path: |
+            **/.dart_tool/build
+          key: build-runner-${{ hashFiles('**/asset_graph.json') }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: build-runner-
+
+      - name: Flutter dependencies install
+        run: flutter pub get
+
+      - name: Accept Android License
+        run: yes | flutter doctor --android-licenses
+
+      - name: Build aab
+        run: flutter build appbundle --release
+
+      - name: Build apk
+        run: flutter build apk --release
+
+      - name: Upload artifact aab
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: release-android
+          path: |
+            build/app/outputs/bundle/release/app-release.aab
+            build/app/outputs/flutter-apk/app-release.apk
