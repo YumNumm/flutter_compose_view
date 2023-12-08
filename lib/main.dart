@@ -36,41 +36,68 @@ class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
   final methodChannel = const MethodChannel(
-    'net.yumnumm.flutter_compose_view.FlutterComposeView',
+    'net.yumnumm.flutter_compose_view.FlutterComposeView/channel',
   );
-  void _incrementCounter() {
-    methodChannel.invokeMethod('increment');
-    setState(() {
-      _counter++;
-    });
+  Future<void> _incrementCounter() async {
+    final value = await methodChannel.invokeMethod<int>('increment');
+    if (context.mounted && value != null){
+      setState(() {
+        _counter = value;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    methodChannel.setMethodCallHandler(
+      (call) async {
+        if (call.method == 'update') {
+          final count = call.arguments as int;
+          if (context.mounted) {
+            setState(() {
+              _counter = count;
+            });
+          }
+        }
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('Flutter Compose View'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Expanded(child: _AndroidHybridComposition()),
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+    return Column(
+      children: [
+        const Expanded(
+          child: _AndroidHybridComposition(),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        child: const Icon(Icons.add),
-      ),
+        Expanded(
+          child: Scaffold(
+            appBar: AppBar(
+              backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+              title: const Text('Flutter'),
+            ),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  const Text(
+                    'You have pushed the button this many times:',
+                  ),
+                  Text(
+                    '$_counter',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                ],
+              ),
+            ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: _incrementCounter,
+              child: const Icon(Icons.add),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -80,7 +107,7 @@ class _AndroidHybridComposition extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const viewType = 'net.yumnumm.flutter_compose_view.FlutterComposeView';
+    const viewType = 'FlutterComposeView';
     const creationParams = <String, dynamic>{};
 
     return PlatformViewLink(
